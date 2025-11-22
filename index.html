@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Fixed viewport for mobile to prevent zooming and ensure touch works -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>OSI MODEL: COMMANDER V5</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* --- CORE STYLES --- */
+    :root {
+      --bg-dark: #010101;
+      --glass: rgba(10, 15, 20, 0.95);
+      --neon-cyan: #00f3ff;
+    }
+
+    body {
+      margin: 0; overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: 'Rajdhani', sans-serif;
+      cursor: none; /* Custom cursor logic */
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; /* Prevents text selection on double tap */
+    }
+
+    /* --- 1. USER NAME (FIXED: 2 LINES) --- */
+    #user-name {
+      position: absolute; top: 20px; right: 20px;
+      display: flex; flex-direction: column; align-items: flex-end;
+      pointer-events: none; z-index: 10;
+    }
+    .user-label {
+      font-size: 10px; color: #888; letter-spacing: 2px; margin-bottom: 2px;
+      font-family: 'Orbitron', sans-serif;
+    }
+    .user-id {
+      font-size: 24px; color: white; font-weight: 900;
+      text-transform: uppercase;
+      text-align: right;
+      line-height: 1.1; /* Tight spacing for the two lines */
+      text-shadow: 0 0 15px var(--neon-cyan);
+      border-right: 4px solid var(--neon-cyan);
+      padding-right: 15px;
+      font-family: 'Orbitron', sans-serif;
+      background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1));
+    }
+
+    /* --- 2. CUSTOM CURSOR --- */
+    #cursor {
+      width: 20px; height: 20px;
+      border: 2px solid var(--neon-cyan);
+      background: rgba(0, 243, 255, 0.1);
+      border-radius: 50%;
+      position: fixed; pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.1s;
+      mix-blend-mode: screen;
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+    /* Hide custom cursor on touch devices */
+    @media (hover: none) and (pointer: coarse) {
+      #cursor { display: none !important; }
+      body { cursor: auto; }
+    }
+    body.hovering #cursor {
+      transform: translate(-50%, -50%) scale(2.5);
+      border-color: white;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* --- 3. HUD (UPDATED TEXT) --- */
+    #hud-top {
+      position: absolute; top: 20px; left: 20px;
+      pointer-events: none; z-index: 10;
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2.5rem; margin: 0;
+      letter-spacing: 4px; color: white;
+      text-shadow: 0 0 20px var(--neon-cyan);
+    }
+    .status-line { 
+      font-size: 14px; color: #0aff0a; margin-top: 5px; 
+      font-weight: 700; letter-spacing: 2px;
+    }
+
+    /* --- 4. ANIMATED BACKGROUND --- */
+    #bg-grid {
+      position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+      background-image: 
+        linear-gradient(rgba(0, 243, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.08) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: perspective(500px) rotateX(60deg);
+      animation: gridMove 20s linear infinite;
+      pointer-events: none; z-index: -1;
+    }
+    @keyframes gridMove { from { transform: perspective(500px) rotateX(60deg) translateY(0); } to { transform: perspective(500px) rotateX(60deg) translateY(50px); } }
+
+    /* --- 5. TOOLTIP --- */
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.95);
+      border: 1px solid white;
+      color: #fff; padding: 8px 15px;
+      font-family: 'Orbitron', sans-serif; font-size: 14px;
+      pointer-events: none; display: none;
+      box-shadow: 0 0 15px rgba(255,255,255,0.2);
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    /* --- 6. MODAL --- */
+    #modalBackdrop {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); z-index: 200;
+      backdrop-filter: blur(8px);
+      justify-content: center; align-items: center;
+      padding: 20px; box-sizing: border-box;
+    }
+    
+    body.modal-open { cursor: auto; }
+    
+    #holoPanel {
+      width: 600px; max-width: 100%;
+      background: var(--glass);
+      border: 2px solid white;
+      box-shadow: 0 0 60px rgba(0, 255, 255, 0.15);
+      position: relative;
+      animation: modalOpen 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    @keyframes modalOpen { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .panel-inner { padding: 30px; position: relative; overflow: hidden; }
+    .panel-inner::after {
+      content: " "; position: absolute; top:0; left:0; width:100%; height:100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+      background-size: 100% 4px; pointer-events: none;
+    }
+
+    .panel-header { display: flex; align-items: center; margin-bottom: 15px; }
+    .panel-num { font-size: 60px; font-weight: 900; opacity: 0.3; font-family: 'Orbitron'; margin-right: 15px; color:white; }
+    .panel-title { 
+      font-family: 'Orbitron'; font-weight: 900; font-size: 30px; color: white; 
+      text-transform: uppercase; letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+    .panel-desc { color: #ddd; font-size: 18px; line-height: 1.5; margin-bottom: 20px; }
+    .panel-ex-box {
+      border: 1px solid #333; background: rgba(0,0,0,0.5); padding: 15px;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .ex-label { color: #888; font-size: 12px; font-family: 'Orbitron'; letter-spacing: 1px; }
+    .ex-content { color: var(--neon-cyan); font-family: monospace; font-size: 15px; font-weight: bold; }
+
+    #closeBtn {
+      position: absolute; top: -20px; right: -20px;
+      width: 45px; height: 45px; background: black; 
+      border: 2px solid white; color: white; border-radius: 50%; 
+      display: flex; justify-content: center; align-items: center;
+      cursor: pointer; font-family: 'Orbitron'; font-weight: bold; font-size: 20px;
+      box-shadow: 0 0 15px white; z-index: 300;
+    }
+    #closeBtn:hover { background: white; color: black; }
+
+    /* MOBILE ADJUSTMENTS */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.5rem; }
+      .status-line { font-size: 10px; }
+      #user-name { top: 15px; right: 15px; }
+      .user-id { font-size: 14px; padding-right: 8px; border-right-width: 3px; }
+      .user-label { font-size: 8px; }
+      .panel-inner { padding: 20px; }
+      .panel-title { font-size: 20px; }
+      .panel-num { font-size: 35px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WORLD -->
+  <div id="bg-grid"></div>
+  <div id="cursor"></div>
+
+  <!-- FIXED USER NAME: 2 LINES -->
+  <div id="user-name">
+    <div class="user-label">NETWORK COMMANDER</div>
+    <div class="user-id">
+      ABDALLAH AHMED<br>HAMDY
+    </div>
+  </div>
+
+  <!-- HUD (UPDATED) -->
+  <div id="hud-top">
+    <h1>OSI MODEL:</h1>
+    <div class="status-line">SYSTEM ONLINE // FULL DIAGNOSTIC</div>
+  </div>
+
+  <!-- INTERACTION -->
+  <div id="tooltip"></div>
+
+  <!-- MODAL -->
+  <div id="modalBackdrop">
+    <div id="holoPanel">
+      <div id="closeBtn">X</div>
+      <div class="panel-inner">
+        <div class="panel-header">
+          <div class="panel-num" id="mNum">00</div>
+          <div class="panel-title" id="mTitle">HEADER</div>
+        </div>
+        <div style="width: 100%; height: 2px; background: #333; margin-bottom: 20px;">
+          <div id="mBar" style="width: 50%; height: 100%; background: white; box-shadow: 0 0 10px white;"></div>
+        </div>
+        <div class="panel-desc" id="mDesc">Loading...</div>
+        <div class="panel-ex-box" id="exBox">
+          <div class="ex-label">REAL WORLD EXAMPLE</div>
+          <div class="ex-content" id="mEx">...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREE.JS ENGINE -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// --------------------------------------------------------
+// DATA (DEFINITIONS & EXAMPLES)
+// --------------------------------------------------------
+const osiData = [
+  { 
+    id: 7, name: "Application", color: "#FF0040", 
+    desc: "The Human-Computer Interface. This layer handles user requests and data input.",
+    ex: "Web Browsers (Chrome), Email Clients (Outlook).",
+    protocols: [
+      { name: "HTTP", desc: "Hypertext Transfer Protocol used for viewing web pages.", ex: "Loading a website." },
+      { name: "DNS", desc: "Domain Name System. Translates names to IPs.", ex: "google.com -> 142.250.1.1" },
+      { name: "SSH", desc: "Secure Shell. Secure command line access.", ex: "Admin server login." },
+      { name: "FTP", desc: "File Transfer Protocol.", ex: "Uploading files." }
+    ]
+  },
+  { 
+    id: 6, name: "Presentation", color: "#FF6600",
+    desc: "The Translator. Converts data into a format the app can read (Encryption/Compression).",
+    ex: "Converting Binary to Text, Encrypting data.",
+    protocols: [
+      { name: "SSL", desc: "Secure Sockets Layer (Encryption).", ex: "Green padlock in browser." },
+      { name: "JPEG", desc: "Image compression standard.", ex: "Viewing photos." },
+      { name: "ASCII", desc: "Text encoding.", ex: "Plain text files." }
+    ]
+  },
+  { 
+    id: 5, name: "Session", color: "#FFD700",
+    desc: "The Manager. Controls the connection (session) between computers.",
+    ex: "Staying logged into Facebook for a week.",
+    protocols: [
+      { name: "RPC", desc: "Remote Procedure Call.", ex: "Executing code remotely." },
+      { name: "NetBIOS", desc: "Network Basic I/O System.", ex: "Local printer sharing." }
+    ]
+  },
+  { 
+    id: 4, name: "Transport", color: "#00FF00",
+    desc: "The Postman. Ensures data arrives reliably (TCP) or quickly (UDP).",
+    ex: "Downloading files (TCP) vs Streaming (UDP).",
+    protocols: [
+      { name: "TCP", desc: "Reliable delivery (No data loss).", ex: "Emails, Websites." },
+      { name: "UDP", desc: "Fast delivery (Possible data loss).", ex: "Gaming, Voice Chat." }
+    ]
+  },
+  { 
+    id: 3, name: "Network", color: "#00FFFF",
+    desc: "The Navigator. Handles Routing and IP Addressing.",
+    ex: "A Router finding the path to a server.",
+    protocols: [
+      { name: "IPv4", desc: "Internet Protocol Address.", ex: "192.168.1.1" },
+      { name: "ICMP", desc: "Diagnostic protocol.", ex: "Ping command." },
+      { name: "IPsec", desc: "Encrypted IP packets.", ex: "VPN Connections." }
+    ]
+  },
+  { 
+    id: 2, name: "Data Link", color: "#0066FF",
+    desc: "The Local Traffic Cop. Transfers data between nodes on the same network using MAC addresses.",
+    ex: "Switches moving data via cables.",
+    protocols: [
+      { name: "Ethernet", desc: "Wired LAN standard.", ex: "LAN Cable." },
+      { name: "MAC", desc: "Physical Hardware Address.", ex: "Card ID: A4-22-B1..." },
+      { name: "ARP", desc: "Address Resolution Protocol.", ex: "Finding MAC from IP." }
+    ]
+  },
+  { 
+    id: 1, name: "Physical", color: "#9900FF",
+    desc: "The Hardware. Raw bit streams over cables or airwaves.",
+    ex: "Cables, Hubs, Radio Signals.",
+    protocols: [
+      { name: "USB", desc: "Universal Serial Bus.", ex: "Keyboards/Mice." },
+      { name: "Wi-Fi", desc: "Wireless Signals.", ex: "Airwaves." },
+      { name: "Fiber", desc: "Light signals in glass.", ex: "Undersea cables." }
+    ]
+  }
+];
+
+// --------------------------------------------------------
+// THREE.JS SETUP
+// --------------------------------------------------------
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x010101, 0.005);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(70, 60, 100);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+// --------------------------------------------------------
+// TEXTURE GENERATOR (HUGE TEXT FOR BOXES)
+// --------------------------------------------------------
+function createTextTexture(text, color, type) {
+  const canvas = document.createElement('canvas');
+  // High Resolution Canvas
+  canvas.width = 1024; 
+  canvas.height = 256; 
+  
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0,0,0,0)'; 
+  ctx.fillRect(0,0,1024,256);
+  
+  // Font Sizing
+  const fontSize = type === 'box' ? 140 : 70; 
+  
+  ctx.font = `900 ${fontSize}px 'Orbitron', sans-serif`;
+  ctx.textAlign = 'center'; 
+  ctx.textBaseline = 'middle';
+  
+  // Neon Glow
+  ctx.shadowColor = color; 
+  ctx.shadowBlur = type === 'box' ? 30 : 20;
+  ctx.fillStyle = 'white'; 
+  
+  ctx.fillText(text, 512, 128);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// --------------------------------------------------------
+// BUILD SCENE
+// --------------------------------------------------------
+const mainGroup = new THREE.Group();
+scene.add(mainGroup);
+const interactables = [];
+let yPos = 0;
+const lHeight = 5;
+const lDepth = 14;
+
+// Reverse order (Physical at bottom)
+const layers = [...osiData].reverse();
+
+layers.forEach(layer => {
+  const pCount = layer.protocols.length;
+  const pWidth = 10; 
+  const gap = 2;
+  const totalRowWidth = pCount * (pWidth + gap) - gap;
+  const startX = -totalRowWidth / 2 + pWidth / 2;
+
+  // 1. NEON TRAY
+  const trayGeo = new THREE.BoxGeometry(totalRowWidth + 6, lHeight + 1.5, lDepth + 4);
+  const edges = new THREE.EdgesGeometry(trayGeo);
+  const trayMat = new THREE.LineBasicMaterial({ color: layer.color, transparent: true, opacity: 0.8 });
+  const trayLine = new THREE.LineSegments(edges, trayMat);
+  trayLine.position.y = yPos;
+  mainGroup.add(trayLine);
+
+  // 2. LAYER LABEL
+  const labelGeo = new THREE.PlaneGeometry(32, 8); 
+  const labelTex = createTextTexture(`L${layer.id} ${layer.name.toUpperCase()}`, layer.color, 'label');
+  const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, side: THREE.DoubleSide, transparent: true });
+  const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+  labelMesh.position.set(-totalRowWidth/2 - 18, yPos, 0);
+  labelMesh.rotation.y = Math.PI / 8;
+  
+  labelMesh.userData = { type: 'layer', id: layer.id, title: layer.name, desc: layer.desc, ex: layer.ex, color: layer.color };
+  interactables.push(labelMesh);
+  mainGroup.add(labelMesh);
+
+  // 3. PROTOCOL BOXES
+  layer.protocols.forEach((p, i) => {
+    const boxGeo = new THREE.BoxGeometry(pWidth, lHeight, lDepth);
+    const boxMat = new THREE.MeshStandardMaterial({ 
+      color: 0x111111, roughness: 0.2, metalness: 0.8,
+      emissive: layer.color, emissiveIntensity: 0.05
+    });
+    
+    const block = new THREE.Mesh(boxGeo, boxMat);
+    block.position.set(startX + i * (pWidth + gap), yPos, 0);
+
+    // TEXT ON BOX (HUGE FONT)
+    const textTex = createTextTexture(p.name, layer.color, 'box');
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(pWidth + 2, (pWidth + 2)/4), new THREE.MeshBasicMaterial({ map: textTex, transparent: true }));
+    textMesh.position.z = lDepth/2 + 0.1;
+    block.add(textMesh);
+    
+    const backMesh = textMesh.clone();
+    backMesh.rotation.y = Math.PI;
+    backMesh.position.z = -lDepth/2 - 0.1;
+    block.add(backMesh);
+
+    // BOX EDGES
+    const bEdges = new THREE.EdgesGeometry(boxGeo);
+    const bLine = new THREE.LineSegments(bEdges, new THREE.LineBasicMaterial({ color: layer.color, opacity: 0.4, transparent: true }));
+    block.add(bLine);
+
+    block.userData = { type: 'protocol', id: layer.id, title: p.name, desc: p.desc, ex: p.ex, color: layer.color };
+    interactables.push(block);
+    mainGroup.add(block);
+  });
+
+  yPos += (lHeight + 5);
+});
+
+// Center Scene
+new THREE.Box3().setFromObject(mainGroup).getCenter(mainGroup.position).multiplyScalar(-1);
+mainGroup.position.y += 10;
+
+// --------------------------------------------------------
+// INTERACTION & EVENTS
+// --------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+const cursor = document.getElementById('cursor');
+
+// Modal Elements
+const modal = document.getElementById('modalBackdrop');
+const mTitle = document.getElementById('mTitle');
+const mDesc = document.getElementById('mDesc');
+const mEx = document.getElementById('mEx');
+const mBar = document.getElementById('mBar');
+const mNum = document.getElementById('mNum');
+const holoPanel = document.getElementById('holoPanel');
+let isModalOpen = false;
+
+function handleInput(x, y, isClick) {
+  if(isModalOpen) return;
+
+  mouse.x = (x / window.innerWidth) * 2 - 1;
+  mouse.y = -(y / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(interactables);
+
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    
+    document.body.classList.add('hovering');
+    controls.autoRotate = false;
+    
+    tooltip.style.display = 'block';
+    tooltip.style.left = (x + 20) + 'px';
+    tooltip.style.top = (y + 20) + 'px';
+    tooltip.innerHTML = obj.userData.type === 'layer' ? "LAYER DEFINITION" : "PROTOCOL INFO";
+    tooltip.style.borderColor = obj.userData.color;
+
+    if(isClick) openModal(obj.userData);
+
+  } else {
+    document.body.classList.remove('hovering');
+    if(!isModalOpen) controls.autoRotate = true;
+    tooltip.style.display = 'none';
+  }
+}
+
+// Mouse
+window.addEventListener('mousemove', (e) => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+  handleInput(e.clientX, e.clientY, false);
+});
+window.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY, true));
+
+// Touch (Mobile Friendly Fix)
+window.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  handleInput(t.clientX, t.clientY, true);
+}, {passive: false});
+
+function openModal(data) {
+  isModalOpen = true;
+  document.body.classList.add('modal-open');
+  modal.style.display = 'flex';
+  
+  mTitle.innerText = data.title;
+  mTitle.style.textShadow = `0 0 20px ${data.color}`;
+  mDesc.innerText = data.desc;
+  mEx.innerText = data.ex;
+  mNum.innerText = "0" + data.id;
+  
+  holoPanel.style.borderColor = data.color;
+  holoPanel.style.boxShadow = `0 0 50px ${data.color}40`;
+  mBar.style.background = data.color;
+  mBar.style.boxShadow = `0 0 15px ${data.color}`;
+  document.querySelector('.ex-content').style.color = data.color;
+
+  controls.autoRotate = false;
+}
+
+function closeModal() {
+  isModalOpen = false;
+  document.body.classList.remove('modal-open');
+  modal.style.display = 'none';
+  controls.autoRotate = true;
+}
+
+document.getElementById('closeBtn').onclick = closeModal;
+window.onclick = (e) => { if(e.target === modal) closeModal(); };
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+</script>
+</body>
+</html>
