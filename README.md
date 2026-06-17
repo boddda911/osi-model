@@ -1,11 +1,10 @@
-Interactive OSI Model
+<h1>Interactive OSI Model</h1>
+
+<p align="center">
+  <img src="preview.png" alt="OSI Model Preview" width="1000">
+</p>
 
 🚀 Interactive educational website for learning and visualizing the OSI (Open Systems Interconnection) Model.
-
-Live Demo
-
-🌐 https://osi-model.vercel.app/
-
 Overview
 
 The OSI Model is one of the first networking concepts students encounter, but many learners find it difficult to visualize and remember the relationship between the seven layers.
